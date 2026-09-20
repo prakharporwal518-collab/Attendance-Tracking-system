@@ -17,7 +17,8 @@ process.env.ADMIN_PASSWORD = 'first-password';
 
 const { config } = await import('../src/config.js');
 const { createApp } = await import('../src/app.js');
-const { bootstrapAdmin, seedIfEmpty, userCount } = await import('../src/db/bootstrap.js');
+const { bootstrapAdmin, ensureStarterData, userCount, hasDemoAccounts } =
+  await import('../src/db/bootstrap.js');
 const { get, run } = await import('../src/db/index.js');
 
 let baseUrl;
@@ -45,7 +46,7 @@ describe('a production deploy', () => {
   it('does not create demo accounts on its own', async () => {
     assert.equal(config.isProduction, true);
     assert.equal(config.seedDemoData, false);
-    assert.equal(await seedIfEmpty(), 'skipped-production');
+    assert.equal(await ensureStarterData(), 'skipped-production');
     assert.equal(userCount(), 0);
   });
 
@@ -89,24 +90,41 @@ describe('a production deploy', () => {
     assert.equal((await login('owner@example.com', 'first-password')).status, 200);
   });
 
-  it('seeds demo data when SEED_DEMO_DATA is explicitly set', async () => {
-    // A database with the admin in it is not empty, so start from scratch.
-    for (const table of ['attendance', 'enrollments', 'courses', 'users']) {
-      run(`DELETE FROM ${table}`);
-    }
-    assert.equal(userCount(), 0);
+  it('does not advertise demo logins that are not installed', async () => {
+    assert.equal(hasDemoAccounts(), false);
 
-    config.seedDemoData = true;
-    assert.equal(await seedIfEmpty(), 'seeded');
-    assert.ok(userCount() > 1);
-
-    const response = await login('admin@college.edu', 'password123');
-    assert.equal(response.status, 200);
-
-    config.seedDemoData = false;
+    const response = await fetch(`${baseUrl}/api/health`);
+    const body = await response.json();
+    assert.equal(body.setupRequired, false);
+    assert.equal(body.demoAccounts, false);
   });
 
-  it('is a no-op once accounts exist', async () => {
-    assert.equal(await seedIfEmpty(), 'not-needed');
+  it('loads demo data alongside an existing administrator', async () => {
+    // The admin created above means the database is not empty. Keying the
+    // demo seed off emptiness made SEED_DEMO_DATA a no-op forever after.
+    assert.ok(userCount() > 0);
+
+    config.seedDemoData = true;
+    assert.equal(await ensureStarterData(), 'seeded');
+
+    assert.equal(hasDemoAccounts(), true);
+    assert.equal((await login('sunita.rao@college.edu', 'password123')).status, 200);
+    assert.equal((await login('admin@college.edu', 'password123')).status, 200);
+  });
+
+  it('keeps the administrator working after the demo data is added', async () => {
+    assert.equal((await login('owner@example.com', 'first-password')).status, 200);
+  });
+
+  it('now reports the demo logins as available', async () => {
+    const body = await (await fetch(`${baseUrl}/api/health`)).json();
+    assert.equal(body.demoAccounts, true);
+  });
+
+  it('does not seed a second time', async () => {
+    const before = userCount();
+    assert.equal(await ensureStarterData(), 'not-needed');
+    assert.equal(userCount(), before);
+    config.seedDemoData = false;
   });
 });

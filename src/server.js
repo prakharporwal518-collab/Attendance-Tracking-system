@@ -1,12 +1,12 @@
 import { createApp } from './app.js';
 import { config } from './config.js';
-import { bootstrapAdmin, seedIfEmpty, userCount } from './db/bootstrap.js';
+import { bootstrapAdmin, ensureStarterData, userCount } from './db/bootstrap.js';
 
 const app = createApp();
 
 let seedResult;
 try {
-  seedResult = await seedIfEmpty();
+  seedResult = await ensureStarterData();
 } catch (error) {
   console.error('\n  Could not create the starter data:', error.message);
   seedResult = 'failed';

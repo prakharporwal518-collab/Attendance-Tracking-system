@@ -72,20 +72,44 @@ function wipe() {
   run("DELETE FROM sqlite_sequence WHERE name IN ('attendance','enrollments','courses','users')");
 }
 
+/** The demo dataset is identified by this account. */
+export const DEMO_ADMIN_EMAIL = 'admin@college.edu';
+
+/** True when the demo dataset is present, whatever else is in the database. */
+export function hasDemoAccounts() {
+  return get('SELECT 1 AS found FROM users WHERE email = :email', {
+    email: DEMO_ADMIN_EMAIL
+  }) !== undefined;
+}
+
 /**
- * Fill an empty database with demo data.
+ * Fill the database with demo data.
  *
  * @param {object}  [options]
  * @param {boolean} [options.reset]  Wipe every table first.
  * @param {boolean} [options.quiet]  Suppress the per-step logging.
+ * @param {boolean} [options.allowExisting]
+ *   Add the demo data alongside accounts that are already there, instead of
+ *   refusing as soon as the database is non-empty. A deployment that creates
+ *   an administrator from ADMIN_EMAIL is never empty again, so without this
+ *   there would be no way to load the demo data afterwards.
  * @returns {Promise<boolean>} true when data was written, false when skipped.
  */
-export async function seedDatabase({ reset = false, quiet = false } = {}) {
+export async function seedDatabase({
+  reset = false,
+  quiet = false,
+  allowExisting = false
+} = {}) {
   const say = quiet ? () => {} : (...args) => console.log(...args);
 
   if (reset) wipe();
 
-  if (get('SELECT COUNT(*) AS n FROM users').n > 0) {
+  if (hasDemoAccounts()) {
+    say('The demo accounts are already present. Run "npm run reset" to start over.');
+    return false;
+  }
+
+  if (!allowExisting && get('SELECT COUNT(*) AS n FROM users').n > 0) {
     say('The database already has users. Run "npm run reset" to start over.');
     return false;
   }

@@ -207,6 +207,10 @@ and the deployment starts with the 24 students, 5 courses and six weeks of
 history, signed into with `admin@college.edu` / `password123`. Do not put real
 attendance data in a deployment configured this way — that password is public.
 
+This works alongside `ADMIN_EMAIL`: set both and you get your own administrator
+*and* the sample data, each with its own login. It also works on a deployment
+that already has accounts, so you can turn it on later and redeploy.
+
 ### 3. Keep the data (important)
 
 Render replaces the container's filesystem on **every deploy and every
@@ -368,10 +372,20 @@ PORT=3001 npm start          # macOS / Linux
 $env:PORT=3001; npm start    # Windows PowerShell
 ```
 
-**Deployed on Render and the login fails / it says the database is empty**
-Production deploys do not create demo accounts automatically. Set `ADMIN_EMAIL`
-and `ADMIN_PASSWORD` in the Render dashboard and redeploy, then sign in with
-exactly those values. See [Deploying](#deploying-render-and-similar-hosts).
+**Deployed on Render and "Email or password is incorrect"**
+The sample logins (`admin@college.edu`, `sunita.rao@college.edu`, …) only exist
+where the demo dataset was loaded. A deployment set up with `ADMIN_EMAIL` has
+one account — yours — so sign in with the exact `ADMIN_EMAIL` and
+`ADMIN_PASSWORD` values from your hosting dashboard. The sign-in page tells you
+which of the two a given site is using.
+
+To add the sample data to a deployment that already has your administrator, set
+`SEED_DEMO_DATA=true` and redeploy; both logins then work.
+
+**Deployed on Render and it says the database is empty**
+Production deploys do not create accounts automatically. Set `ADMIN_EMAIL` and
+`ADMIN_PASSWORD` in the Render dashboard and redeploy. See
+[Deploying](#deploying-render-and-similar-hosts).
 
 **Deployed data disappears after a redeploy**
 The container filesystem is replaced on each deploy. Mount a disk and set

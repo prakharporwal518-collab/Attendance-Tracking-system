@@ -172,8 +172,11 @@ $('#menu-toggle').addEventListener('click', () => {
 window.addEventListener('hashchange', renderRoute);
 
 /**
- * If the database has no accounts, say so on the login screen. Otherwise the
- * demo buttons below promise logins that cannot possibly work.
+ * Make the sign-in page describe this particular installation.
+ *
+ * The demo credentials are baked into the HTML, but they only exist if the
+ * demo dataset was loaded. A deployment with its own administrator has none
+ * of them, and listing logins that cannot work is worse than listing nothing.
  */
 async function checkSetupState() {
   let health;
@@ -182,17 +185,28 @@ async function checkSetupState() {
   } catch {
     return;
   }
-  if (!health?.setupRequired) return;
 
-  $('.demo-hint').innerHTML = `
-    <strong>No accounts exist yet.</strong><br />
-    Stop the server with <kbd>Ctrl</kbd>+<kbd>C</kbd>, then run
-    <code>npm run doctor</code> in your terminal. It creates the demo
-    accounts and tells you what to do next.`;
+  const hint = $('.demo-hint');
 
-  const errorBox = $('#login-error');
-  errorBox.textContent = 'This database is empty — there is nobody to sign in as yet.';
-  errorBox.classList.remove('hidden');
+  if (health?.setupRequired) {
+    hint.innerHTML = `
+      <strong>No accounts exist yet.</strong><br />
+      If you are running this locally, stop the server with
+      <kbd>Ctrl</kbd>+<kbd>C</kbd> and run <code>npm run doctor</code>.
+      If this is a deployment, set <code>ADMIN_EMAIL</code> and
+      <code>ADMIN_PASSWORD</code> in your hosting dashboard and redeploy.`;
+
+    const errorBox = $('#login-error');
+    errorBox.textContent = 'This database is empty — there is nobody to sign in as yet.';
+    errorBox.classList.remove('hidden');
+    return;
+  }
+
+  if (!health?.demoAccounts) {
+    hint.innerHTML = `
+      Sign in with the account set up for this site. The sample logins from
+      the project README are not installed here.`;
+  }
 }
 
 /* ------------------------------------------------------------------ boot */
