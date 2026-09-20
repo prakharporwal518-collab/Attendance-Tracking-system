@@ -13,6 +13,10 @@ export function createApp() {
   const app = express();
 
   app.disable('x-powered-by');
+
+  // Render and similar hosts terminate TLS and forward over plain HTTP. Without
+  // this, Express sees every request as insecure and req.ip is the proxy's.
+  if (config.trustProxy) app.set('trust proxy', 1);
   app.use(express.json({ limit: '1mb' }));
   app.use(cookieParser());
 

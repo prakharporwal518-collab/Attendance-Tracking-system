@@ -1,0 +1,47 @@
+# Render Blueprint — https://render.com/docs/blueprint-spec
+#
+# Deploy with: Render dashboard -> New -> Blueprint -> pick this repository.
+#
+# The disk matters. Render replaces the container's filesystem on every deploy
+# and on every restart, so without a mounted disk the SQLite file — and every
+# account and attendance record in it — is wiped each time.
+
+services:
+  - type: web
+    name: attendance-tracking-system
+    runtime: node
+    plan: starter          # "free" has no disks; see the README for that case
+    buildCommand: npm ci
+    startCommand: npm start
+    healthCheckPath: /api/health
+
+    disk:
+      name: attendance-data
+      mountPath: /var/data
+      sizeGB: 1
+
+    envVars:
+      - key: NODE_VERSION
+        value: 22.11.0
+
+      # Keeps the database on the persistent disk above.
+      - key: DATABASE_FILE
+        value: /var/data/attendance.sqlite
+
+      # Generated once by Render and kept across deploys. Changing it signs
+      # everyone out, which is the correct behaviour if it ever leaks.
+      - key: JWT_SECRET
+        generateValue: true
+
+      # Your administrator login. Set these in the Render dashboard rather
+      # than committing them here — sync:false makes Render prompt for them.
+      - key: ADMIN_EMAIL
+        sync: false
+      - key: ADMIN_PASSWORD
+        sync: false
+
+      # Uncomment to load the sample students, courses and attendance history.
+      # The demo password is public in the README, so only use this for a
+      # portfolio or classroom demo, never with real data.
+      # - key: SEED_DEMO_DATA
+      #   value: "true"
