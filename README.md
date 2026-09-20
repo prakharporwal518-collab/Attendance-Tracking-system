@@ -211,7 +211,7 @@ This works alongside `ADMIN_EMAIL`: set both and you get your own administrator
 *and* the sample data, each with its own login. It also works on a deployment
 that already has accounts, so you can turn it on later and redeploy.
 
-### 3. Keep the data (important)
+### 3. Keep the data (important — free tier cannot)
 
 Render replaces the container's filesystem on **every deploy and every
 restart**. Without a mounted disk your SQLite file is wiped each time, taking
@@ -227,10 +227,12 @@ with a Render disk mounted at `/var/data`. The included `render.yaml` sets this
 up for you — in the Render dashboard choose **New → Blueprint** and select this
 repository.
 
-> Render's **free** instance type does not support disks, so data there resets
-> on every restart (including the idle spin-down). That is fine for a demo with
-> `SEED_DEMO_DATA=true`, since the data is recreated on each boot. For anything
-> you want to keep, use an instance type that allows a disk.
+> Render's **free** instance type does not support disks, and a blueprint that
+> asks for one is rejected before anything is built. `render.yaml` here targets
+> the free tier with `SEED_DEMO_DATA=true`, so the sample data is recreated on
+> each boot and the reset does not matter. For records you want to keep, switch
+> to a paid instance type and add the disk — the bottom of `render.yaml` shows
+> exactly what to change.
 
 ### 4. Set a JWT secret
 
@@ -386,6 +388,20 @@ To add the sample data to a deployment that already has your administrator, set
 Production deploys do not create accounts automatically. Set `ADMIN_EMAIL` and
 `ADMIN_PASSWORD` in the Render dashboard and redeploy. See
 [Deploying](#deploying-render-and-similar-hosts).
+
+**The deploy itself fails on Render**
+Open the failed deploy's log and read the last few lines.
+
+- *A disk or paid instance type was requested* — free accounts cannot create
+  disks. `render.yaml` in this repository targets the free instance type and
+  needs no disk, so pull the latest and redeploy.
+- *`Cannot write the database to …`* — `DATABASE_FILE` points somewhere the
+  service cannot write, usually a disk that was never mounted. Remove
+  `DATABASE_FILE` and the database is stored inside the project instead.
+- *`Cannot find module 'node:sqlite'`* — the build used a Node older than
+  22.5. Set `NODE_VERSION` to `22.11.0`.
+- *`JWT_SECRET must be set …`* — add `JWT_SECRET` in the Environment tab, or
+  let Render generate one.
 
 **Deployed data disappears after a redeploy**
 The container filesystem is replaced on each deploy. Mount a disk and set
