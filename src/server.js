@@ -22,7 +22,23 @@ async function ensureAccountsExist() {
   }
 
   console.log('\n  First run — creating demo data…');
-  await seedDatabase({ quiet: true });
+
+  try {
+    await seedDatabase({ quiet: true });
+  } catch (error) {
+    console.error('\n  Could not create the demo data:', error.message);
+    console.error('  Run "npm run doctor" to see what went wrong.\n');
+    return false;
+  }
+
+  // Confirm it actually landed. Reporting success without checking is how an
+  // empty database reaches the login screen claiming everything is fine.
+  if (get('SELECT COUNT(*) AS n FROM users').n === 0) {
+    console.error('\n  The seed reported success but wrote no accounts.');
+    console.error('  Run "npm run doctor" for details.\n');
+    return false;
+  }
+
   return true;
 }
 
@@ -42,6 +58,9 @@ const server = app.listen(config.port, () => {
     console.log(`    admin    admin@college.edu`);
     console.log(`    teacher  sunita.rao@college.edu`);
     console.log(`    student  aarav.sharma1@student.college.edu`);
+  } else {
+    console.log(`\n  There are no accounts, so nothing can sign in yet.`);
+    console.log(`  Stop the server with Ctrl+C and run:  npm run doctor`);
   }
   if (seeded) {
     console.log(`\n  (Run "npm run reset" at any time to start from scratch.)`);

@@ -33,7 +33,7 @@ authRouter.post('/login', async (req, res) => {
   if (get('SELECT COUNT(*) AS n FROM users').n === 0) {
     throw new HttpError(
       503,
-      'No accounts exist yet. Run "npm run seed" to create the demo accounts, then sign in again.'
+      'No accounts exist yet. Run "npm run doctor" in your terminal to create them, then sign in again.'
     );
   }
 

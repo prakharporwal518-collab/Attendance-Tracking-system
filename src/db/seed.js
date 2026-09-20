@@ -9,8 +9,6 @@
  * `seedDatabase()` is also called by the server on first run, so that a fresh
  * clone can be signed into without a separate setup step.
  */
-import path from 'node:path';
-import { fileURLToPath } from 'node:url';
 import bcrypt from 'bcryptjs';
 import { config } from '../config.js';
 import { all, get, run, transaction } from './index.js';
@@ -204,13 +202,5 @@ export async function seedDatabase({ reset = false, quiet = false } = {}) {
   return true;
 }
 
-// Only act as a CLI when run directly, so importing this file is side-effect free.
-const isCli = process.argv[1] &&
-  path.resolve(process.argv[1]) === path.resolve(fileURLToPath(import.meta.url));
-
-if (isCli) {
-  seedDatabase({ reset: process.argv.includes('--reset') }).catch((error) => {
-    console.error('Seeding failed:', error);
-    process.exit(1);
-  });
-}
+// No CLI handling here on purpose: `src/db/seed-cli.js` is the command-line
+// entry point, so importing this module is always side-effect free.
