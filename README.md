@@ -71,11 +71,10 @@ accounts — the password is `password123` for all three:
 | Teacher | `sunita.rao@college.edu`            | Mark and report on their own courses       |
 | Student | `aarav.sharma1@student.college.edu` | View their own attendance                  |
 
-> **"Email or password is incorrect" on a brand-new checkout?** That means the
-> database has no accounts in it. The `data/` folder is deliberately not tracked
-> in git, so it starts empty. Run `npm run seed` to create the demo accounts,
-> then sign in again. (`npm start` now does this for you on first run; the
-> manual command is still there if you cleared the database yourself.)
+> **Login screen says the database is empty?** Run `npm run doctor`. It creates
+> the demo accounts, checks that each one can actually sign in, and prints the
+> database path it used. `npm start` also seeds on first run, so this should be
+> rare — but `doctor` is the one command to reach for when it is not.
 >
 > Use `npm run reset` at any time to wipe everything and start over.
 
@@ -170,6 +169,7 @@ Deliberately small, so it runs anywhere Node does with no build step:
 | `npm run dev`   | Run with auto-restart on file changes                  |
 | `npm run seed`  | Create demo data (does nothing if users already exist) |
 | `npm run reset` | Wipe every table, then seed                            |
+| `npm run doctor`| Diagnose and fix an empty database or a failed login   |
 | `npm test`      | Run the test suite                                     |
 
 ## Configuration
@@ -257,8 +257,16 @@ first-run behaviour on an empty database.
 
 ## Troubleshooting
 
-**"Email or password is incorrect" on a fresh checkout**
-The database has no accounts in it yet. Run `npm run seed`, then sign in again.
+**"This database is empty" or "Email or password is incorrect"**
+There are no accounts in the database yet. Run:
+
+```bash
+npm run doctor
+```
+
+It reports which database file is in use, how many accounts are in it, creates
+the demo data if there is none, and then verifies that each demo login actually
+works. Start the server again afterwards with `npm start`.
 
 **"This project needs Node 22.5 or newer"**
 Your Node is too old. Install the LTS build from <https://nodejs.org>, then

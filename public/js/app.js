@@ -186,8 +186,9 @@ async function checkSetupState() {
 
   $('.demo-hint').innerHTML = `
     <strong>No accounts exist yet.</strong><br />
-    Stop the server and run <code>npm run seed</code> to create the demo
-    accounts, then start it again.`;
+    Stop the server with <kbd>Ctrl</kbd>+<kbd>C</kbd>, then run
+    <code>npm run doctor</code> in your terminal. It creates the demo
+    accounts and tells you what to do next.`;
 
   const errorBox = $('#login-error');
   errorBox.textContent = 'This database is empty — there is nobody to sign in as yet.';
