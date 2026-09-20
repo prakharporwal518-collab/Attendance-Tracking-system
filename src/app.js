@@ -2,6 +2,7 @@ import express from 'express';
 import cookieParser from 'cookie-parser';
 import { config } from './config.js';
 import { get } from './db/index.js';
+import { hasDemoAccounts } from './db/seed.js';
 import { authRouter } from './routes/auth.js';
 import { usersRouter } from './routes/users.js';
 import { coursesRouter } from './routes/courses.js';
@@ -34,7 +35,11 @@ export function createApp() {
       time: new Date().toISOString(),
       // The login screen uses this to explain an empty database instead of
       // advertising demo accounts that do not exist.
-      setupRequired: get('SELECT COUNT(*) AS n FROM users').n === 0
+      setupRequired: get('SELECT COUNT(*) AS n FROM users').n === 0,
+      // Whether the demo logins printed on the sign-in page actually exist
+      // here. A deployment with its own administrator has no demo accounts,
+      // and advertising them sends people round in circles.
+      demoAccounts: hasDemoAccounts()
     });
   });
 

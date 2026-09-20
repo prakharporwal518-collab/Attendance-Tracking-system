@@ -6,7 +6,7 @@
 import bcrypt from 'bcryptjs';
 import { config } from '../config.js';
 import { get, run } from './index.js';
-import { seedDatabase } from './seed.js';
+import { hasDemoAccounts, seedDatabase } from './seed.js';
 
 const userCount = () => get('SELECT COUNT(*) AS n FROM users').n;
 
@@ -46,18 +46,33 @@ export async function bootstrapAdmin() {
 }
 
 /**
- * Fill an empty database with demo data.
+ * Put the starter data in place.
  *
- * Outside production this happens automatically, so a fresh clone just works.
- * In production it requires SEED_DEMO_DATA, because the demo accounts share a
- * password that is written down in the README.
+ * Outside production an empty database is filled automatically, so a fresh
+ * clone just works. In production that needs SEED_DEMO_DATA, because the demo
+ * accounts share a password that is written down in the README.
+ *
+ * SEED_DEMO_DATA is honoured whenever the demo accounts are missing — not only
+ * when the database is completely empty. A deployment that creates an
+ * administrator from ADMIN_EMAIL is never empty again, so keying off emptiness
+ * meant switching the variable on later did nothing at all.
  *
  * @returns {Promise<'seeded'|'skipped-production'|'not-needed'>}
  */
-export async function seedIfEmpty() {
+export async function ensureStarterData() {
+  // Explicitly asked for: add the demo data even alongside other accounts.
+  if (config.seedDemoData && !hasDemoAccounts()) {
+    await seedDatabase({ quiet: true, allowExisting: true });
+
+    if (!hasDemoAccounts()) {
+      throw new Error('Seeding reported success but the demo accounts are missing.');
+    }
+    return 'seeded';
+  }
+
   if (userCount() > 0) return 'not-needed';
 
-  if (config.isProduction && !config.seedDemoData) return 'skipped-production';
+  if (config.isProduction) return 'skipped-production';
 
   await seedDatabase({ quiet: true });
 
@@ -67,4 +82,4 @@ export async function seedIfEmpty() {
   return 'seeded';
 }
 
-export { userCount };
+export { userCount, hasDemoAccounts };
