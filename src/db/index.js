@@ -1,3 +1,7 @@
+// Must come first: it explains an old Node version before the import below
+// fails with a message that does not mention Node versions at all.
+import '../utils/requirements.js';
+
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';

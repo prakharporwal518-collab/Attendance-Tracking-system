@@ -7,21 +7,63 @@ administrators manage people, courses and rosters.
 ![Node](https://img.shields.io/badge/node-%E2%89%A522.5-brightgreen)
 ![License](https://img.shields.io/badge/license-MIT-blue)
 
-## Quick start
+## Running it for the first time
+
+You type these commands in a **terminal**, not in a browser or a code editor's
+text area.
+
+**Opening a terminal**
+
+| Your system | How to open one                                                      |
+| ----------- | -------------------------------------------------------------------- |
+| Windows     | Start menu → type `PowerShell` → Enter (or Windows + R, type `cmd`)   |
+| macOS       | Command + Space → type `Terminal` → Enter                            |
+| Linux       | Ctrl + Alt + T                                                        |
+| VS Code     | Terminal menu → New Terminal (this one already opens in your project) |
+
+**Check you have Node 22.5 or newer** — the project uses Node's built-in
+SQLite, which older versions do not have:
+
+```bash
+node --version
+```
+
+If that prints something below `v22.5`, or says the command is not found,
+install the LTS version from <https://nodejs.org> first.
+
+**Then run these four commands, one at a time:**
 
 ```bash
 git clone https://github.com/prakharporwal518-collab/Attendance-Tracking-system.git
 cd Attendance-Tracking-system
-
-npm install      # install dependencies
-npm start        # http://localhost:3000
+npm install
+npm start
 ```
+
+The third and fourth commands must be run **from inside the project folder** —
+that is what `cd Attendance-Tracking-system` does. If you get
+`npm ERR! could not read package.json`, you are in the wrong folder: run `cd`
+into the project and try again.
+
+Leave the terminal running while you use the app. Press **Ctrl + C** to stop the
+server, and `npm start` to start it again.
+
+<details>
+<summary>Already cloned it earlier? Use this instead</summary>
+
+```bash
+cd Attendance-Tracking-system
+git pull
+npm install
+npm start
+```
+</details>
 
 On first run the server creates the database and fills it with demo data
 automatically, then prints the sign-in details in your terminal.
 
-Open <http://localhost:3000> and sign in with one of these accounts — the
-password is `password123` for all three:
+Now open <http://localhost:3000> in your browser and sign in with one of these
+accounts — the password is `password123` for all three:
 
 | Role    | Email                               | What they can do                          |
 | ------- | ----------------------------------- | ----------------------------------------- |
@@ -212,6 +254,32 @@ The suite starts a real server against a temporary database and covers
 authentication, role boundaries, marking rules (future dates, invalid statuses,
 unenrolled students), percentage calculation, CSV export, cascade deletes, and
 first-run behaviour on an empty database.
+
+## Troubleshooting
+
+**"Email or password is incorrect" on a fresh checkout**
+The database has no accounts in it yet. Run `npm run seed`, then sign in again.
+
+**"This project needs Node 22.5 or newer"**
+Your Node is too old. Install the LTS build from <https://nodejs.org>, then
+check with `node --version`.
+
+**`npm ERR! could not read package.json`**
+You are not in the project folder. Run `cd Attendance-Tracking-system` first.
+`ls` (or `dir` on Windows) should show `package.json`.
+
+**`Error: listen EADDRINUSE: address already in use :::3000`**
+Something else is already on port 3000 — most likely a copy of this server you
+started earlier. Close that terminal, or run it on another port:
+
+```bash
+PORT=3001 npm start          # macOS / Linux
+$env:PORT=3001; npm start    # Windows PowerShell
+```
+
+**Anything else**
+Copy the full red error text from the terminal — it names the file and line,
+which is usually enough to find the cause.
 
 ## License
 
