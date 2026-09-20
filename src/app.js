@@ -8,6 +8,7 @@ import { usersRouter } from './routes/users.js';
 import { coursesRouter } from './routes/courses.js';
 import { attendanceRouter } from './routes/attendance.js';
 import { reportsRouter } from './routes/reports.js';
+import { expensesRouter } from './routes/expenses.js';
 import { errorHandler, notFoundHandler } from './middleware/error.js';
 
 export function createApp() {
@@ -48,6 +49,7 @@ export function createApp() {
   app.use('/api/courses', coursesRouter);
   app.use('/api/attendance', attendanceRouter);
   app.use('/api/reports', reportsRouter);
+  app.use('/api/expenses', expensesRouter);
 
   app.use('/api', notFoundHandler);
 

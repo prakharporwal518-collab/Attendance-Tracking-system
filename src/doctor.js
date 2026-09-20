@@ -9,6 +9,7 @@ import bcrypt from 'bcryptjs';
 import { config } from './config.js';
 import { all, get } from './db/index.js';
 import { seedDatabase } from './db/seed.js';
+import { formatAmount } from './utils/money.js';
 
 const line = () => console.log('─'.repeat(62));
 
@@ -86,11 +87,18 @@ for (const [role, email] of demo) {
 }
 
 const counts = get(`
-  SELECT (SELECT COUNT(*) FROM courses)     AS courses,
-         (SELECT COUNT(*) FROM enrollments) AS enrollments,
-         (SELECT COUNT(*) FROM attendance)  AS attendance`);
+  SELECT (SELECT COUNT(*) FROM courses)            AS courses,
+         (SELECT COUNT(*) FROM enrollments)        AS enrollments,
+         (SELECT COUNT(*) FROM attendance)         AS attendance,
+         (SELECT COUNT(*) FROM expense_categories) AS categories,
+         (SELECT COUNT(*) FROM expenses)           AS expenses,
+         (SELECT IFNULL(SUM(amount), 0) FROM expenses WHERE status = 'pending') AS pending`);
 
 console.log(`\nData: ${counts.courses} courses, ${counts.enrollments} enrollments, ${counts.attendance} attendance records.`);
+console.log(
+  `Expenses: ${counts.expenses} across ${counts.categories} categories, ` +
+    `${formatAmount(counts.pending)} ${config.currency} awaiting approval.`
+);
 
 line();
 

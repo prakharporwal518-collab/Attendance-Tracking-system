@@ -351,6 +351,9 @@ tbody tr:last-child td { border-bottom: none; }
 .badge.role-teacher { background: var(--brand-soft); color: var(--brand-dark); }
 .badge.role-student { background: #e4f4ec; color: var(--present); }
 .badge.inactive { background: #fce8ea; color: var(--absent); }
+.badge.expense-approved { background: #e4f4ec; color: var(--present); }
+.badge.expense-pending  { background: #fdf0dd; color: #a9650f; }
+.badge.expense-rejected { background: #fce8ea; color: var(--absent); }
 
 /* ------------------------------------------------------------- rate bars */
 .rate { display: flex; align-items: center; gap: .6rem; min-width: 140px; }
@@ -562,4 +565,72 @@ tbody tr:last-child td { border-bottom: none; }
   .menu-toggle { display: block; }
   .view { padding: 1rem; }
   .topbar { padding: .8rem 1rem; }
+}
+
+/* -------------------------------------------------------------- expenses */
+.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 0 .9rem; }
+
+.checkline {
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+  font-size: .9rem;
+  margin-bottom: .9rem;
+  cursor: pointer;
+}
+
+.table-foot {
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+  flex-wrap: wrap;
+  padding: .75rem 1.1rem;
+  border-top: 1px solid var(--border);
+}
+
+/* The month picker sits in a card header, where a full-width input looks
+   like a stray text box. */
+#exp-month { width: auto; min-width: 160px; }
+
+/* Titles, vendors and notes share one cell, so give it room to breathe
+   before the browser starts wrapping every word. */
+#exp-list td:nth-child(2) { min-width: 190px; }
+
+/* An overspent budget: the one number that should catch the eye. */
+td.over { color: var(--absent); font-weight: 600; }
+
+/* Twelve-month column chart. Heights are percentages of the tallest month,
+   so the columns need a fixed track to grow inside. */
+.spark {
+  display: flex;
+  align-items: flex-end;
+  gap: .4rem;
+  height: 140px;
+}
+.spark-col {
+  flex: 1;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  align-items: center;
+  gap: .35rem;
+  min-width: 0;
+}
+.spark-bar {
+  width: 100%;
+  max-width: 44px;
+  background: var(--brand);
+  border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+  transition: height .2s ease;
+}
+.spark-col:hover .spark-bar { background: var(--brand-dark); }
+.spark-label {
+  font-size: .72rem;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+@media (max-width: 600px) {
+  .grid-2 { grid-template-columns: 1fr; }
 }

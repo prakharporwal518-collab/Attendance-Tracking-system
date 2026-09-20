@@ -36,6 +36,10 @@ services:
       - key: SEED_DEMO_DATA
         value: "true"
 
+      # Currency the expense tracker labels amounts with (ISO 4217).
+      - key: CURRENCY
+        value: INR
+
       # Your own administrator login. sync:false means Render asks you for
       # the values instead of reading them from this file, so they are never
       # committed to git. Optional: without them you can still sign in with

@@ -5,6 +5,7 @@ import { historyView, markView } from './views/mark.js';
 import { coursesView } from './views/courses.js';
 import { peopleView } from './views/people.js';
 import { reportsView, settingsView } from './views/reports.js';
+import { expensesView } from './views/expenses.js';
 
 /** Every route, with the roles allowed to open it. */
 const ROUTES = [
@@ -20,6 +21,8 @@ const ROUTES = [
     subtitle: 'Students, teachers and administrator accounts.' },
   { path: 'reports',   title: 'Reports',          icon: '◔', roles: ['admin', 'teacher'],            view: reportsView,
     subtitle: 'Per-student attendance rates, with CSV export.' },
+  { path: 'expenses',  title: 'Expenses',         icon: '₹', roles: ['admin', 'teacher'],            view: expensesView,
+    subtitle: 'Departmental spending, budgets and approvals.' },
   { path: 'settings',  title: 'My Account',       icon: '⚙', roles: ['admin', 'teacher', 'student'], view: settingsView,
     subtitle: 'Your details and password.' }
 ];

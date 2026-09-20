@@ -1,8 +1,9 @@
 # Attendance Tracking System
 
 A web application for recording and reporting student attendance in a college or
-school. Teachers mark a class in one pass, students see their own percentage, and
-administrators manage people, courses and rosters.
+school, with a departmental expense tracker alongside it. Teachers mark a class in
+one pass, students see their own percentage, and administrators manage people,
+courses, rosters, budgets and spending.
 
 ![Node](https://img.shields.io/badge/node-%E2%89%A522.5-brightgreen)
 ![License](https://img.shields.io/badge/license-MIT-blue)
@@ -96,6 +97,14 @@ gets demo accounts with a published password.
 - Students below the 75% mark are flagged
 - CSV export of any filtered view
 
+**Expense tracking**
+- Spending categories, each with an optional monthly budget
+- Teachers raise an expense; an administrator approves or rejects it
+- Budget card showing approved, pending, remaining and percentage used per category
+- Twelve-month spending chart, and totals for the month you pick
+- Search, filter by category, status, course or date range, then export to CSV
+- An expense can be tagged to a course, so a lab's costs sit beside its classes
+
 **Administration**
 - Create students, teachers and administrators
 - Create courses and assign a teacher
@@ -117,6 +126,42 @@ calculation entirely rather than counted against the student, so one authorised
 absence does not lower their percentage. A student with no recorded sessions has
 no rate at all (shown as "No sessions yet") rather than 0%.
 
+## How money is stored
+
+Every amount — an expense, a budget, a total — is held as a **whole number of
+paise** (minor units) in an `INTEGER` column, and only divided by 100 at the last
+moment, when it is drawn on screen.
+
+This is deliberate. A `REAL` column cannot hold `0.1` exactly, so `19.99 + 0.01`
+comes back as `19.999999999999996`, and a ledger that is a paisa out is a ledger
+nobody trusts. Amounts are parsed from text with string arithmetic rather than
+`value * 100`, because `19.99 * 100` is `1998.9999999999998` in JavaScript too.
+
+The API therefore returns both spellings of every amount:
+
+```json
+{ "amount": "1250.50", "amountMinor": 125050 }
+```
+
+`amountMinor` is the exact integer to do arithmetic with; `amount` is a decimal
+string you can send straight back in a `PATCH`. `CURRENCY` (default `INR`) only
+changes the label — it does not convert anything.
+
+## Who can do what with an expense
+
+| Action                          | Admin | Teacher                     | Student |
+| ------------------------------- | ----- | --------------------------- | ------- |
+| See the ledger                  | all   | only what they recorded     | no      |
+| Record an expense               | yes (auto-approved) | yes (starts pending) | no |
+| Edit or delete one              | any   | own, while still pending    | no      |
+| Approve or reject               | yes   | no                          | no      |
+| Manage categories and budgets   | yes   | no                          | no      |
+
+An expense is locked to its author once it has been approved or rejected, so an
+approval cannot be quietly rewritten afterwards. Administrators can still correct
+one. Only approved spending counts against a budget; pending spending is shown
+next to it so nothing is a surprise at month end.
+
 ## Project layout
 
 ```
@@ -137,9 +182,11 @@ src/
     courses.js         courses and enrollment
     attendance.js      marking and reading attendance
     reports.js         dashboards, per-course reports, CSV export
+    expenses.js        expense categories, budgets, approvals, CSV export
   utils/
     validate.js        input validation
     errors.js          HTTP error types
+    money.js           integer minor-unit parsing and formatting
 public/
   index.html           single page that hosts the whole frontend
   css/styles.css
@@ -150,6 +197,9 @@ public/
     views/             one module per screen
 tests/
   api.test.js          end-to-end tests against a temporary database
+  expenses.test.js     the expense tracker, end to end
+  setup.test.js        first-run behaviour on an empty database
+  deploy.test.js       what a hosted instance does on first boot
 ```
 
 ## Tech stack
@@ -267,6 +317,7 @@ Copy `.env.example` to `.env` to change anything:
 | `TOKEN_EXPIRES_IN` | `8h`                     | How long a session lasts           |
 | `DATABASE_FILE`    | `data/attendance.sqlite` | Where the database lives           |
 | `SEED_PASSWORD`    | `password123`            | Password given to demo accounts    |
+| `CURRENCY`         | `INR`                    | ISO 4217 code amounts are shown in |
 | `ADMIN_EMAIL`      | unset                    | Administrator login to create      |
 | `ADMIN_PASSWORD`   | unset                    | That administrator's password      |
 | `ADMIN_NAME`       | `Administrator`          | Display name for it                |
@@ -310,17 +361,37 @@ token is sent either in an `httpOnly` cookie (what the web UI uses) or as an
 | `GET`    | `/reports/course/:id`             | staff    |
 | `GET`    | `/reports/student/:id`            | any user |
 | `GET`    | `/reports/export.csv`             | staff    |
+| `GET`    | `/expenses`                       | staff    |
+| `POST`   | `/expenses`                       | staff    |
+| `GET`    | `/expenses/summary`               | staff    |
+| `GET`    | `/expenses/export.csv`            | staff    |
+| `GET`    | `/expenses/:id`                   | staff    |
+| `PATCH`  | `/expenses/:id`                   | staff    |
+| `PATCH`  | `/expenses/:id/status`            | admin    |
+| `DELETE` | `/expenses/:id`                   | staff    |
+| `GET`    | `/expenses/categories`            | staff    |
+| `POST`   | `/expenses/categories`            | admin    |
+| `PATCH`  | `/expenses/categories/:id`        | admin    |
+| `DELETE` | `/expenses/categories/:id`        | admin    |
 
 "Staff" means admin or teacher, and a teacher is further limited to the courses
-they own. Students are silently scoped to their own rows on every endpoint they
-can reach.
+they own and the expenses they recorded. Students are silently scoped to their own
+rows on every endpoint they can reach, and are refused the expense routes outright.
+
+`GET /expenses` accepts `categoryId`, `courseId`, `status`, `from`, `to`, `q`,
+`limit` (max 500) and `offset`; `/expenses/export.csv` takes the same filters.
+`GET /expenses/summary` takes `month=YYYY-MM` and defaults to the current month.
 
 ## Data model
 
 ```
-users ──────┬──< enrollments >── courses
-            │                       │
-            └──────< attendance >───┘
+users ──────┬──< enrollments >── courses ──┐
+            │                       │      │
+            └──────< attendance >───┘      │
+            │                              │
+            └──────< expenses >────────────┘
+                         │
+              expense_categories
 ```
 
 - A **user** is a student, teacher or admin; all three sign in the same way.
@@ -330,8 +401,18 @@ users ──────┬──< enrollments >── courses
   constraint on that triple is what makes re-saving a sheet an update rather than
   a duplicate.
 
+- An **expense category** is a spending head with an optional monthly budget.
+- An **expense** belongs to one category, optionally to one course, and records
+  who raised it and who reviewed it.
+
 Deleting a course or a student removes their enrollments and attendance rows
 through `ON DELETE CASCADE`. To keep the history instead, deactivate the account.
+
+Expenses are treated more carefully, because they are a financial record:
+deleting a course only clears the `course_id` on its expenses, deleting a user
+leaves their expenses in place with the name unset, and a category that still has
+expenses booked against it cannot be deleted at all — deactivate it instead, which
+hides it from new entries while the history stays intact.
 
 ## Testing
 

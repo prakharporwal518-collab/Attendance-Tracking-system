@@ -2,8 +2,10 @@ import { badRequest } from './errors.js';
 
 export const ROLES = ['admin', 'teacher', 'student'];
 export const ATTENDANCE_STATUSES = ['present', 'absent', 'late', 'excused'];
+export const EXPENSE_STATUSES = ['pending', 'approved', 'rejected'];
 
 const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
+const MONTH_PATTERN = /^\d{4}-\d{2}$/;
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 /** Trim a string field and fail when it is missing or empty. */
@@ -62,6 +64,14 @@ export function requireStatus(value) {
  * Validate a YYYY-MM-DD date. The round-trip through Date catches values that
  * match the pattern but are not real days, such as 2026-02-31.
  */
+export function requireExpenseStatus(value) {
+  const status = requireString(value, 'status').toLowerCase();
+  if (!EXPENSE_STATUSES.includes(status)) {
+    throw badRequest(`"status" must be one of: ${EXPENSE_STATUSES.join(', ')}.`);
+  }
+  return status;
+}
+
 export function requireDate(value, field = 'date') {
   const date = requireString(value, field, { max: 10 });
   if (!DATE_PATTERN.test(date)) {
@@ -79,6 +89,24 @@ export function optionalDate(value, field = 'date') {
   return requireDate(value, field);
 }
 
+/** Validate a YYYY-MM month, used by the expense summary. */
+export function requireMonth(value, field = 'month') {
+  const month = requireString(value, field, { max: 7 });
+  if (!MONTH_PATTERN.test(month)) {
+    throw badRequest(`"${field}" must use the YYYY-MM format.`);
+  }
+  const number = Number(month.slice(5));
+  if (number < 1 || number > 12) {
+    throw badRequest(`"${field}" is not a real calendar month.`);
+  }
+  return month;
+}
+
+export function optionalMonth(value, field = 'month') {
+  if (value === undefined || value === null || value === '') return null;
+  return requireMonth(value, field);
+}
+
 /** Parse a positive integer id coming from a URL parameter or body field. */
 export function requireId(value, field = 'id') {
   const id = Number(value);
@@ -91,6 +119,29 @@ export function requireId(value, field = 'id') {
 export function optionalId(value, field = 'id') {
   if (value === undefined || value === null || value === '') return null;
   return requireId(value, field);
+}
+
+/**
+ * Clamp a page size into a sane range. A list endpoint with no ceiling is one
+ * `?limit=999999999` away from reading the whole table into memory.
+ */
+export function optionalLimit(value, { fallback = 100, max = 500 } = {}) {
+  if (value === undefined || value === null || value === '') return fallback;
+  const limit = Number(value);
+  if (!Number.isInteger(limit) || limit <= 0) {
+    throw badRequest('"limit" must be a positive whole number.');
+  }
+  return Math.min(limit, max);
+}
+
+/** Row offset for pagination; zero is valid here, unlike an id. */
+export function optionalOffset(value) {
+  if (value === undefined || value === null || value === '') return 0;
+  const offset = Number(value);
+  if (!Number.isInteger(offset) || offset < 0) {
+    throw badRequest('"offset" must be zero or a positive whole number.');
+  }
+  return offset;
 }
 
 /** Today's date in the server's local timezone, as YYYY-MM-DD. */

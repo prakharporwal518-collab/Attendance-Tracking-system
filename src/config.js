@@ -33,6 +33,11 @@ export const config = {
   seedPassword: process.env.SEED_PASSWORD ?? 'password123',
   publicDir: path.join(rootDir, 'public'),
 
+  // ISO 4217 code the expense screens format amounts with. Stored amounts
+  // are plain minor units, so changing this relabels them, it does not
+  // convert them.
+  currency: (process.env.CURRENCY ?? 'INR').trim().toUpperCase(),
+
   // Hosts such as Render set NODE_ENV=production for you and give you no shell
   // to run a seed command in, so demo data has to be requestable by env var.
   seedDemoData: asBoolean(process.env.SEED_DEMO_DATA),
@@ -47,6 +52,10 @@ export const config = {
   // Render, Heroku and friends terminate TLS in front of the app.
   trustProxy: asBoolean(process.env.TRUST_PROXY ?? (isProduction ? 'true' : 'false'))
 };
+
+if (!/^[A-Z]{3}$/.test(config.currency)) {
+  throw new Error('CURRENCY must be a three-letter ISO 4217 code, such as INR or USD.');
+}
 
 if (config.adminPassword && config.adminPassword.length < 8) {
   throw new Error('ADMIN_PASSWORD must be at least 8 characters long.');

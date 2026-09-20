@@ -1,7 +1,7 @@
 /**
  * Creates a small but realistic dataset so the app is usable the moment it
- * starts: three roles, five courses, twenty-four students and roughly six
- * weeks of attendance history.
+ * starts: three roles, five courses, twenty-four students, roughly six weeks
+ * of attendance history, and six months of departmental expenses.
  *
  *   npm run seed     add demo data, keeping anything already there
  *   npm run reset    wipe every table first, then seed
@@ -37,6 +37,36 @@ const COURSES = [
   { code: 'MA201', name: 'Discrete Mathematics', department: 'Mathematics', teacher: 2 }
 ];
 
+const EXPENSE_CATEGORIES = [
+  { name: 'Lab Equipment', budget: 150000, min: 4000, max: 48000,
+    description: 'Computers, instruments and laboratory consumables.',
+    vendors: ['Sharma Scientific', 'TechnoLab Systems', 'Nova Instruments'] },
+  { name: 'Stationery & Printing', budget: 25000, min: 600, max: 7500,
+    description: 'Question papers, registers and office supplies.',
+    vendors: ['Campus Stationers', 'Ravi Printers'] },
+  { name: 'Events & Workshops', budget: 60000, min: 3000, max: 32000,
+    description: 'Guest lectures, seminars and student events.',
+    vendors: ['Annapurna Caterers', 'SoundWorks AV', 'Prism Decorators'] },
+  { name: 'Library & Books', budget: 40000, min: 1200, max: 18000,
+    description: 'Books, journals and online subscriptions.',
+    vendors: ['Vidya Book House', 'Springer India'] },
+  { name: 'Maintenance', budget: 35000, min: 900, max: 14000,
+    description: 'Repairs, cleaning and campus upkeep.',
+    vendors: ['CoolAir Services', 'Sai Electricals', 'GreenKeep Facility'] },
+  { name: 'Travel', budget: null, min: 1500, max: 22000,
+    description: 'Field trips and staff travel reimbursements.',
+    vendors: ['Metro Travels', 'IndiGo', 'Yatra Corporate'] }
+];
+
+const EXPENSE_TITLES = {
+  'Lab Equipment': ['Replacement lab workstations', 'Oscilloscope repair kit', 'Network switch for Lab 2'],
+  'Stationery & Printing': ['Semester question paper printing', 'Attendance registers', 'Toner cartridges'],
+  'Events & Workshops': ['Guest lecture refreshments', 'Hackathon prize fund', 'Workshop banner and stage'],
+  'Library & Books': ['Algorithms reference set', 'IEEE journal renewal', 'Reading room chairs'],
+  'Maintenance': ['Air conditioner servicing', 'Projector lamp replacement', 'Classroom repainting'],
+  'Travel': ['Industrial visit bus hire', 'Conference travel reimbursement', 'Faculty exchange trip']
+};
+
 /** Deterministic pseudo-random generator so every seed run looks the same. */
 function makeRandom(seed) {
   let state = seed;
@@ -64,12 +94,28 @@ function recentWeekdays(count) {
   return dates.reverse();
 }
 
+/** UTC "YYYY-MM-DD HH:MM:SS", matching SQLite's datetime('now'). */
+const nowStamp = () => new Date().toISOString().slice(0, 19).replace('T', ' ');
+
+/** `days` days before today, as YYYY-MM-DD. */
+function daysAgo(days) {
+  const cursor = new Date();
+  cursor.setHours(12, 0, 0, 0);
+  cursor.setDate(cursor.getDate() - days);
+  return cursor.toISOString().slice(0, 10);
+}
+
 function wipe() {
   console.log('Clearing existing data…');
-  for (const table of ['attendance', 'enrollments', 'courses', 'users']) {
+  // Order matters: every child table goes before the table it points at.
+  const tables = [
+    'expenses', 'expense_categories', 'attendance', 'enrollments', 'courses', 'users'
+  ];
+  for (const table of tables) {
     run(`DELETE FROM ${table}`);
   }
-  run("DELETE FROM sqlite_sequence WHERE name IN ('attendance','enrollments','courses','users')");
+  const names = tables.map((table) => `'${table}'`).join(',');
+  run(`DELETE FROM sqlite_sequence WHERE name IN (${names})`);
 }
 
 /** The demo dataset is identified by this account. */
@@ -126,7 +172,7 @@ export async function seedDatabase({
     );
 
   transaction(() => {
-    createUser('System Administrator', 'admin@college.edu', 'admin', null, 'Administration');
+    const adminId = createUser('System Administrator', 'admin@college.edu', 'admin', null, 'Administration');
 
     const teacherIds = TEACHERS.map((teacher) =>
       createUser(teacher.name, teacher.email, 'teacher', null, teacher.department)
@@ -213,8 +259,67 @@ export async function seedDatabase({
       }
     }
 
+    /* ------------------------------ expenses ----------------------------- */
+
+    const pick = (items) => items[Math.floor(random() * items.length)];
+
+    const categoryIds = EXPENSE_CATEGORIES.map((category) =>
+      Number(
+        run(
+          `INSERT INTO expense_categories (name, description, monthly_budget)
+           VALUES (:name, :description, :budget)`,
+          {
+            name: category.name,
+            description: category.description,
+            // Budgets are stored in minor units, like every other amount.
+            budget: category.budget === null ? null : category.budget * 100
+          }
+        ).lastInsertRowid
+      )
+    );
+
+    let expenses = 0;
+
+    // Roughly six months of spending, so the month-by-month chart has history.
+    for (let index = 0; index < 72; index += 1) {
+      const position = Math.floor(random() * EXPENSE_CATEGORIES.length);
+      const category = EXPENSE_CATEGORIES[position];
+
+      const rupees = Math.round(category.min + random() * (category.max - category.min));
+      const roll = random();
+      const status = roll < 0.78 ? 'approved' : roll < 0.92 ? 'pending' : 'rejected';
+      const raisedBy = random() < 0.7 ? pick(teacherIds) : adminId;
+
+      run(
+        `INSERT INTO expenses
+           (title, amount, spent_on, category_id, course_id, vendor, note, status,
+            created_by, reviewed_by, reviewed_at)
+         VALUES
+           (:title, :amount, :spentOn, :categoryId, :courseId, :vendor, :note, :status,
+            :createdBy, :reviewedBy, :reviewedAt)`,
+        {
+          title: pick(EXPENSE_TITLES[category.name]),
+          // A round rupee figure plus a stray 50 paise, so the totals exercise
+          // the minor-unit arithmetic rather than always landing on .00.
+          amount: rupees * 100 + (random() < 0.3 ? 50 : 0),
+          spentOn: daysAgo(Math.floor(random() * 175)),
+          categoryId: categoryIds[position],
+          courseId: random() < 0.45 ? pick(courseIds) : null,
+          vendor: pick(category.vendors),
+          note: status === 'rejected' ? 'Rejected: no purchase order raised.' : null,
+          status,
+          createdBy: raisedBy,
+          reviewedBy: status === 'pending' ? null : adminId,
+          // Same shape as SQLite's datetime('now'), which every other row uses.
+          reviewedAt: status === 'pending' ? null : nowStamp()
+        }
+      );
+      expenses += 1;
+    }
+
     say(`Created ${studentIds.length} students, ${teacherIds.length} teachers,`);
     say(`${courseIds.length} courses and ${marked} attendance records.`);
+    say(`Created ${categoryIds.length} expense categories and ${expenses} expenses.`);
   });
 
   say('\nDemo accounts (password: %s)', config.seedPassword);
