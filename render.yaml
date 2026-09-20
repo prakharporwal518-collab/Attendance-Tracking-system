@@ -20,9 +20,10 @@ services:
     healthCheckPath: /api/health
 
     envVars:
-      # The app needs Node 22.5+ for its built-in SQLite support.
+      # Node 22.13+ is required: node:sqlite exists from 22.5 but is behind a
+      # flag until 22.13, so earlier 22.x builds fail at startup.
       - key: NODE_VERSION
-        value: 22.11.0
+        value: 22.22.2
 
       # Generated once by Render and kept across deploys. Changing it signs
       # everyone out, which is the correct response to it ever leaking.

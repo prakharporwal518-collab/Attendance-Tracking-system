@@ -4,7 +4,7 @@ A web application for recording and reporting student attendance in a college or
 school. Teachers mark a class in one pass, students see their own percentage, and
 administrators manage people, courses and rosters.
 
-![Node](https://img.shields.io/badge/node-%E2%89%A522.5-brightgreen)
+![Node](https://img.shields.io/badge/node-%E2%89%A522.13-brightgreen)
 ![License](https://img.shields.io/badge/license-MIT-blue)
 
 ## Running it for the first time
@@ -21,14 +21,15 @@ text area.
 | Linux       | Ctrl + Alt + T                                                        |
 | VS Code     | Terminal menu → New Terminal (this one already opens in your project) |
 
-**Check you have Node 22.5 or newer** — the project uses Node's built-in
-SQLite, which older versions do not have:
+**Check you have Node 22.13 or newer** — the project uses Node's built-in
+SQLite. It exists from 22.5, but only became usable without a command-line
+flag in 22.13, so 22.5–22.12 fail with "No such built-in module: node:sqlite":
 
 ```bash
 node --version
 ```
 
-If that prints something below `v22.5`, or says the command is not found,
+If that prints something below `v22.13`, or says the command is not found,
 install the LTS version from <https://nodejs.org> first.
 
 **Then run these four commands, one at a time:**
@@ -157,7 +158,7 @@ tests/
 Deliberately small, so it runs anywhere Node does with no build step:
 
 - **Node.js + Express 5** for the HTTP layer
-- **SQLite** through Node's built-in `node:sqlite` — no native module to compile
+- **SQLite** through Node's built-in `node:sqlite` (Node 22.13+) — nothing to compile
 - **bcrypt** for password hashing, **JWT** for sessions
 - **Vanilla JavaScript ES modules** on the frontend — no bundler, no framework
 
@@ -357,9 +358,10 @@ It reports which database file is in use, how many accounts are in it, creates
 the demo data if there is none, and then verifies that each demo login actually
 works. Start the server again afterwards with `npm start`.
 
-**"This project needs Node 22.5 or newer"**
-Your Node is too old. Install the LTS build from <https://nodejs.org>, then
-check with `node --version`.
+**"This project cannot start on Node …" / `No such built-in module: node:sqlite`**
+Node's built-in SQLite is only available without a flag from 22.13 onwards, so
+22.5–22.12 fail even though they are "new enough" by version number. Install
+22.13+ from <https://nodejs.org>, or on a host set `NODE_VERSION` to `22.22.2`.
 
 **`npm ERR! could not read package.json`**
 You are not in the project folder. Run `cd Attendance-Tracking-system` first.
@@ -398,8 +400,8 @@ Open the failed deploy's log and read the last few lines.
 - *`Cannot write the database to …`* — `DATABASE_FILE` points somewhere the
   service cannot write, usually a disk that was never mounted. Remove
   `DATABASE_FILE` and the database is stored inside the project instead.
-- *`Cannot find module 'node:sqlite'`* — the build used a Node older than
-  22.5. Set `NODE_VERSION` to `22.11.0`.
+- *`No such built-in module: node:sqlite`* — the build used a Node older than
+  22.13, where SQLite is still behind a flag. Set `NODE_VERSION` to `22.22.2`.
 - *`JWT_SECRET must be set …`* — add `JWT_SECRET` in the Environment tab, or
   let Render generate one.
 

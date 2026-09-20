@@ -1,29 +1,47 @@
 /**
- * Checked before anything imports `node:sqlite`, which only exists from
- * Node 22.5 onwards. Without this the failure is `Cannot find module
- * 'node:sqlite'`, which does not tell you that your Node is simply too old.
+ * Checked before anything imports `node:sqlite`, which this project stores all
+ * of its data in.
+ *
+ * Version numbers alone are not enough to decide whether it is usable.
+ * `node:sqlite` was added in Node 22.5, but until 22.13 it was hidden behind
+ * the `--experimental-sqlite` flag, so on 22.5–22.12 the import fails with
+ * "No such built-in module: node:sqlite" no matter what the version check
+ * said. So ask Node directly instead of guessing from the version.
  *
  * Import this module FIRST wherever the database is loaded — ES module
- * imports run in the order they are written.
+ * imports are evaluated in the order they are written.
  */
-const REQUIRED_MAJOR = 22;
-const REQUIRED_MINOR = 5;
+const MINIMUM = '22.13.0';
 
-const [major, minor] = process.versions.node.split('.').map(Number);
-const tooOld = major < REQUIRED_MAJOR || (major === REQUIRED_MAJOR && minor < REQUIRED_MINOR);
+/** True when `node:sqlite` can actually be loaded in this process. */
+function sqliteAvailable() {
+  // Added in Node 22.3, so it exists on every version that could plausibly
+  // have node:sqlite. Guarded anyway, since older versions reach this code.
+  if (typeof process.getBuiltinModule === 'function') {
+    try {
+      return Boolean(process.getBuiltinModule('node:sqlite'));
+    } catch {
+      return false;
+    }
+  }
+  return false;
+}
 
-if (tooOld) {
+if (!sqliteAvailable()) {
   console.error(`
-  This project needs Node ${REQUIRED_MAJOR}.${REQUIRED_MINOR} or newer.
-  You are running Node ${process.versions.node}.
+  This project cannot start on Node ${process.versions.node}.
 
-  It uses Node's built-in SQLite support, which was added in 22.5.
+  It stores its data using Node's built-in SQLite support, which is only
+  available without a command-line flag from Node ${MINIMUM} onwards.
+  Node 22.5 to 22.12 report "No such built-in module: node:sqlite".
 
-  To upgrade:
-    Windows / macOS   download the LTS installer from https://nodejs.org
-    nvm users         nvm install 22 && nvm use 22
+  Use Node ${MINIMUM} or newer:
 
-  Check your version at any time with:  node --version
+    Deploying (Render, Railway…)  set NODE_VERSION to 22.22.2
+    Windows / macOS               install the LTS build from https://nodejs.org
+    nvm                           nvm install 22.22.2 && nvm use 22.22.2
+
+  Check which version you are on with:  node --version
 `);
   process.exit(1);
 }
