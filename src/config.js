@@ -48,12 +48,28 @@ export const config = {
   trustProxy: asBoolean(process.env.TRUST_PROXY ?? (isProduction ? 'true' : 'false'))
 };
 
-if (config.adminPassword && config.adminPassword.length < 8) {
-  throw new Error('ADMIN_PASSWORD must be at least 8 characters long.');
-}
-if (config.adminEmail && !config.adminPassword) {
-  throw new Error('ADMIN_EMAIL was set without ADMIN_PASSWORD — set both or neither.');
-}
-if (config.adminPassword && !config.adminEmail) {
-  throw new Error('ADMIN_PASSWORD was set without ADMIN_EMAIL — set both or neither.');
+/**
+ * ADMIN_EMAIL / ADMIN_PASSWORD are optional. A mistake in them should not take
+ * the whole site down — the app still has its other accounts — so these warn
+ * and switch the bootstrap off rather than refusing to start. JWT_SECRET above
+ * stays fatal, because running with a guessable signing key is not a degraded
+ * mode, it is an insecure one.
+ */
+const adminProblem =
+  config.adminEmail && !config.adminPassword
+    ? 'ADMIN_EMAIL is set but ADMIN_PASSWORD is missing.'
+    : config.adminPassword && !config.adminEmail
+      ? 'ADMIN_PASSWORD is set but ADMIN_EMAIL is missing.'
+      : config.adminPassword && config.adminPassword.length < 8
+        ? 'ADMIN_PASSWORD is shorter than 8 characters.'
+        : null;
+
+if (adminProblem) {
+  console.warn(`
+  ${adminProblem}
+  No administrator will be created from those variables. Set both
+  ADMIN_EMAIL and ADMIN_PASSWORD (8+ characters) and redeploy.
+`);
+  config.adminEmail = null;
+  config.adminPassword = null;
 }
