@@ -1,0 +1,32 @@
+{
+  "name": "attendance-tracking-system",
+  "version": "1.0.0",
+  "description": "A web based attendance tracking system for colleges and schools.",
+  "main": "src/server.js",
+  "type": "module",
+  "engines": {
+    "node": ">=22.5.0"
+  },
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "node --watch src/server.js",
+    "seed": "node src/db/seed.js",
+    "reset": "node src/db/seed.js --reset",
+    "test": "node --test tests/*.test.js"
+  },
+  "keywords": [
+    "attendance",
+    "school",
+    "college",
+    "express",
+    "sqlite"
+  ],
+  "license": "MIT",
+  "dependencies": {
+    "bcryptjs": "^3.0.2",
+    "cookie-parser": "^1.4.7",
+    "dotenv": "^17.2.3",
+    "express": "^5.1.0",
+    "jsonwebtoken": "^9.0.2"
+  }
+}
