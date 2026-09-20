@@ -1,70 +1,79 @@
 import { createApp } from './app.js';
 import { config } from './config.js';
-import { get } from './db/index.js';
-import { seedDatabase } from './db/seed.js';
+import { bootstrapAdmin, seedIfEmpty, userCount } from './db/bootstrap.js';
 
 const app = createApp();
 
-/**
- * A fresh clone has no database file, because `data/` is not tracked in git.
- * Rather than presenting a login screen that nothing can sign in to, create
- * the demo data on first run. This never happens in production, where real
- * accounts are expected and a known password would be a security hole.
- */
-async function ensureAccountsExist() {
-  if (get('SELECT COUNT(*) AS n FROM users').n > 0) return false;
-
-  if (config.isProduction) {
-    console.log('\n  The database is empty and NODE_ENV=production, so no demo');
-    console.log('  accounts were created. Run "npm run seed" to add them, or');
-    console.log('  create your first administrator directly.\n');
-    return false;
-  }
-
-  console.log('\n  First run — creating demo data…');
-
-  try {
-    await seedDatabase({ quiet: true });
-  } catch (error) {
-    console.error('\n  Could not create the demo data:', error.message);
-    console.error('  Run "npm run doctor" to see what went wrong.\n');
-    return false;
-  }
-
-  // Confirm it actually landed. Reporting success without checking is how an
-  // empty database reaches the login screen claiming everything is fine.
-  if (get('SELECT COUNT(*) AS n FROM users').n === 0) {
-    console.error('\n  The seed reported success but wrote no accounts.');
-    console.error('  Run "npm run doctor" for details.\n');
-    return false;
-  }
-
-  return true;
+let seedResult;
+try {
+  seedResult = await seedIfEmpty();
+} catch (error) {
+  console.error('\n  Could not create the starter data:', error.message);
+  seedResult = 'failed';
 }
 
-const seeded = await ensureAccountsExist();
+let adminResult = null;
+try {
+  adminResult = await bootstrapAdmin();
+} catch (error) {
+  console.error('\n  Could not apply ADMIN_EMAIL / ADMIN_PASSWORD:', error.message);
+}
 
 const server = app.listen(config.port, () => {
-  const users = get('SELECT COUNT(*) AS n FROM users').n;
+  const users = userCount();
 
   console.log(`\n  Attendance Tracking System`);
   console.log(`  ──────────────────────────`);
-  console.log(`  Running at  http://localhost:${config.port}`);
-  console.log(`  Database    ${config.databaseFile}`);
-  console.log(`  Accounts    ${users}`);
+  console.log(`  Listening on port ${config.port}`);
+  console.log(`  Database          ${config.databaseFile}`);
+  console.log(`  Environment       ${config.isProduction ? 'production' : 'development'}`);
+  console.log(`  Accounts          ${users}`);
 
-  if (users > 0) {
+  if (seedResult === 'seeded') {
+    console.log(`\n  Created the demo data (first run).`);
+  }
+  if (adminResult) {
+    console.log(`\n  Administrator ${adminResult} from ADMIN_EMAIL: ${config.adminEmail}`);
+  }
+
+  if (users === 0) {
+    // The only way to reach this is a production deploy with nothing configured.
+    console.log(`
+  ────────────────────────────────────────────────────────────
+  There are no accounts, so no one can sign in yet.
+
+  This is a production deployment, so demo accounts are not
+  created automatically. Set environment variables on your host
+  and redeploy — either:
+
+    ADMIN_EMAIL     you@example.com      (your real admin login)
+    ADMIN_PASSWORD  something-private
+
+  or, to load the full demo dataset instead:
+
+    SEED_DEMO_DATA  true
+
+  See the "Deploying" section of the README.
+  ────────────────────────────────────────────────────────────
+`);
+    return;
+  }
+
+  if (!config.isProduction || seedResult === 'seeded') {
     console.log(`\n  Sign in with password "${config.seedPassword}":`);
     console.log(`    admin    admin@college.edu`);
     console.log(`    teacher  sunita.rao@college.edu`);
     console.log(`    student  aarav.sharma1@student.college.edu`);
-  } else {
-    console.log(`\n  There are no accounts, so nothing can sign in yet.`);
-    console.log(`  Stop the server with Ctrl+C and run:  npm run doctor`);
   }
-  if (seeded) {
-    console.log(`\n  (Run "npm run reset" at any time to start from scratch.)`);
+
+  if (config.isProduction && seedResult === 'seeded') {
+    console.log(`
+  WARNING: demo accounts were created on a production deployment
+  because SEED_DEMO_DATA is set. Their password is public in the
+  README. Remove SEED_DEMO_DATA and set ADMIN_EMAIL /
+  ADMIN_PASSWORD before using this with real data.`);
   }
+
   console.log('');
 });
 

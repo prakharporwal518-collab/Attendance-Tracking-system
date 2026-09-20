@@ -172,6 +172,84 @@ Deliberately small, so it runs anywhere Node does with no build step:
 | `npm run doctor`| Diagnose and fix an empty database or a failed login   |
 | `npm test`      | Run the test suite                                     |
 
+## Deploying (Render and similar hosts)
+
+Hosts like Render set `NODE_ENV=production` for you. In production this app
+**does not** create the demo accounts by itself — their password is printed in
+this README, so auto-creating them on a public URL would hand anyone an admin
+login. You choose what the deployment starts with instead.
+
+### 1. Give yourself an administrator
+
+Set these two environment variables in the Render dashboard (Environment tab):
+
+| Variable         | Example                      |
+| ---------------- | ---------------------------- |
+| `ADMIN_EMAIL`    | `you@example.com`            |
+| `ADMIN_PASSWORD` | a private password, 8+ chars |
+
+On every start the app creates that administrator, or updates it if it already
+exists. **That is also how you recover a lost password:** change
+`ADMIN_PASSWORD`, redeploy, and sign in with the new one.
+
+Sign in at your Render URL with exactly those values. Everything else — the
+students, teachers and courses — you then create inside the app.
+
+### 2. Or deploy the demo dataset instead
+
+For a portfolio or classroom demo, set:
+
+| Variable          | Value  |
+| ----------------- | ------ |
+| `SEED_DEMO_DATA`  | `true` |
+
+and the deployment starts with the 24 students, 5 courses and six weeks of
+history, signed into with `admin@college.edu` / `password123`. Do not put real
+attendance data in a deployment configured this way — that password is public.
+
+### 3. Keep the data (important)
+
+Render replaces the container's filesystem on **every deploy and every
+restart**. Without a mounted disk your SQLite file is wiped each time, taking
+every account and attendance record with it.
+
+Attach a disk and point the database at it:
+
+| Variable        | Value                        |
+| --------------- | ---------------------------- |
+| `DATABASE_FILE` | `/var/data/attendance.sqlite` |
+
+with a Render disk mounted at `/var/data`. The included `render.yaml` sets this
+up for you — in the Render dashboard choose **New → Blueprint** and select this
+repository.
+
+> Render's **free** instance type does not support disks, so data there resets
+> on every restart (including the idle spin-down). That is fine for a demo with
+> `SEED_DEMO_DATA=true`, since the data is recreated on each boot. For anything
+> you want to keep, use an instance type that allows a disk.
+
+### 4. Set a JWT secret
+
+| Variable     | Value                                          |
+| ------------ | ---------------------------------------------- |
+| `JWT_SECRET` | a long random string (Render can generate one) |
+
+The app refuses to start in production with the placeholder value. Changing it
+signs everyone out, which is what you want if it ever leaks.
+
+### Deployment checklist
+
+```
+ADMIN_EMAIL      you@example.com          ← your login
+ADMIN_PASSWORD   something-private        ← your password
+JWT_SECRET       (generated)              ← required in production
+DATABASE_FILE    /var/data/attendance.sqlite  ← needs a mounted disk
+```
+
+`https` works with no extra configuration: the session cookie is marked
+`Secure` in production, and `TRUST_PROXY` defaults to on so the app reads
+Render's `X-Forwarded-*` headers correctly.
+
 ## Configuration
 
 Copy `.env.example` to `.env` to change anything:
@@ -183,6 +261,11 @@ Copy `.env.example` to `.env` to change anything:
 | `TOKEN_EXPIRES_IN` | `8h`                     | How long a session lasts           |
 | `DATABASE_FILE`    | `data/attendance.sqlite` | Where the database lives           |
 | `SEED_PASSWORD`    | `password123`            | Password given to demo accounts    |
+| `ADMIN_EMAIL`      | unset                    | Administrator login to create      |
+| `ADMIN_PASSWORD`   | unset                    | That administrator's password      |
+| `ADMIN_NAME`       | `Administrator`          | Display name for it                |
+| `SEED_DEMO_DATA`   | unset                    | Load demo data even in production  |
+| `TRUST_PROXY`      | on in production         | Honour `X-Forwarded-*` headers     |
 
 **Before deploying anywhere real:** set `JWT_SECRET` to a long random string and
 `NODE_ENV=production` (the server refuses to start with the placeholder secret in
@@ -285,9 +368,18 @@ PORT=3001 npm start          # macOS / Linux
 $env:PORT=3001; npm start    # Windows PowerShell
 ```
 
+**Deployed on Render and the login fails / it says the database is empty**
+Production deploys do not create demo accounts automatically. Set `ADMIN_EMAIL`
+and `ADMIN_PASSWORD` in the Render dashboard and redeploy, then sign in with
+exactly those values. See [Deploying](#deploying-render-and-similar-hosts).
+
+**Deployed data disappears after a redeploy**
+The container filesystem is replaced on each deploy. Mount a disk and set
+`DATABASE_FILE` to a path on it, as `render.yaml` does.
+
 **Anything else**
 Copy the full red error text from the terminal — it names the file and line,
-which is usually enough to find the cause.
+which is usually enough to find the cause. On Render, that is the Logs tab.
 
 ## License
 
