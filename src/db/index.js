@@ -10,7 +10,27 @@ import { config } from '../config.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-fs.mkdirSync(path.dirname(config.databaseFile), { recursive: true });
+// A DATABASE_FILE pointing somewhere the process cannot write is a common
+// deployment mistake — typically a path on a disk that was never mounted.
+// The raw errno that follows says nothing about which path or why.
+const databaseDir = path.dirname(config.databaseFile);
+
+try {
+  fs.mkdirSync(databaseDir, { recursive: true });
+  fs.accessSync(databaseDir, fs.constants.W_OK);
+} catch (error) {
+  console.error(`
+  Cannot write the database to:
+    ${config.databaseFile}
+
+  The directory ${databaseDir} is not writable (${error.code ?? error.message}).
+
+  If DATABASE_FILE points at a mounted disk, check that the disk exists and
+  that its mount path matches. On hosts whose plan has no disks, leave
+  DATABASE_FILE unset so the database is stored inside the project instead.
+`);
+  process.exit(1);
+}
 
 export const db = new DatabaseSync(config.databaseFile);
 

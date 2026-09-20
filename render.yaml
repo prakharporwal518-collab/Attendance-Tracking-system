@@ -2,46 +2,62 @@
 #
 # Deploy with: Render dashboard -> New -> Blueprint -> pick this repository.
 #
-# The disk matters. Render replaces the container's filesystem on every deploy
-# and on every restart, so without a mounted disk the SQLite file — and every
-# account and attendance record in it — is wiped each time.
+# This is configured for Render's FREE instance type so it deploys on any
+# account. Free instances have no persistent disk: the filesystem is replaced
+# whenever the service restarts or spins down after being idle, so the SQLite
+# database is recreated empty each time. SEED_DEMO_DATA below refills it on
+# every boot, which makes that harmless for a demo.
+#
+# To keep real data, see "Keeping your data" at the bottom of this file.
 
 services:
   - type: web
     name: attendance-tracking-system
     runtime: node
-    plan: starter          # "free" has no disks; see the README for that case
+    plan: free
     buildCommand: npm ci
     startCommand: npm start
     healthCheckPath: /api/health
 
-    disk:
-      name: attendance-data
-      mountPath: /var/data
-      sizeGB: 1
-
     envVars:
+      # The app needs Node 22.5+ for its built-in SQLite support.
       - key: NODE_VERSION
         value: 22.11.0
 
-      # Keeps the database on the persistent disk above.
-      - key: DATABASE_FILE
-        value: /var/data/attendance.sqlite
-
       # Generated once by Render and kept across deploys. Changing it signs
-      # everyone out, which is the correct behaviour if it ever leaks.
+      # everyone out, which is the correct response to it ever leaking.
       - key: JWT_SECRET
         generateValue: true
 
-      # Your administrator login. Set these in the Render dashboard rather
-      # than committing them here — sync:false makes Render prompt for them.
+      # Loads the sample students, courses and attendance history on each
+      # boot, so the deployed demo is never an empty login screen.
+      # Remove this once you are entering real data — the demo password is
+      # published in the README.
+      - key: SEED_DEMO_DATA
+        value: "true"
+
+      # Your own administrator login. sync:false means Render asks you for
+      # the values instead of reading them from this file, so they are never
+      # committed to git. Optional: without them you can still sign in with
+      # the demo accounts above.
       - key: ADMIN_EMAIL
         sync: false
       - key: ADMIN_PASSWORD
         sync: false
 
-      # Uncomment to load the sample students, courses and attendance history.
-      # The demo password is public in the README, so only use this for a
-      # portfolio or classroom demo, never with real data.
-      # - key: SEED_DEMO_DATA
-      #   value: "true"
+# ── Keeping your data ────────────────────────────────────────────────────────
+#
+# Free instances cannot have disks, so nothing survives a restart. For data
+# that persists, change `plan: free` to a paid instance type and add:
+#
+#     disk:
+#       name: attendance-data
+#       mountPath: /var/data
+#       sizeGB: 1
+#
+# together with an environment variable pointing the database at that disk:
+#
+#     - key: DATABASE_FILE
+#       value: /var/data/attendance.sqlite
+#
+# and remove SEED_DEMO_DATA so your real records are not mixed with samples.
