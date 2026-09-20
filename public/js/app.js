@@ -171,6 +171,29 @@ $('#menu-toggle').addEventListener('click', () => {
 
 window.addEventListener('hashchange', renderRoute);
 
+/**
+ * If the database has no accounts, say so on the login screen. Otherwise the
+ * demo buttons below promise logins that cannot possibly work.
+ */
+async function checkSetupState() {
+  let health;
+  try {
+    health = await api.get('/health');
+  } catch {
+    return;
+  }
+  if (!health?.setupRequired) return;
+
+  $('.demo-hint').innerHTML = `
+    <strong>No accounts exist yet.</strong><br />
+    Stop the server and run <code>npm run seed</code> to create the demo
+    accounts, then start it again.`;
+
+  const errorBox = $('#login-error');
+  errorBox.textContent = 'This database is empty — there is nobody to sign in as yet.';
+  errorBox.classList.remove('hidden');
+}
+
 /* ------------------------------------------------------------------ boot */
 
 try {
@@ -178,4 +201,5 @@ try {
   showApp(user);
 } catch {
   showLogin();
+  checkSetupState();
 }

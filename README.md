@@ -14,12 +14,14 @@ git clone https://github.com/prakharporwal518-collab/Attendance-Tracking-system.
 cd Attendance-Tracking-system
 
 npm install      # install dependencies
-npm run seed     # create the database with demo data
 npm start        # http://localhost:3000
 ```
 
-Then open <http://localhost:3000> and sign in with one of the demo accounts
-(password `password123` for all three):
+On first run the server creates the database and fills it with demo data
+automatically, then prints the sign-in details in your terminal.
+
+Open <http://localhost:3000> and sign in with one of these accounts — the
+password is `password123` for all three:
 
 | Role    | Email                               | What they can do                          |
 | ------- | ----------------------------------- | ----------------------------------------- |
@@ -27,8 +29,16 @@ Then open <http://localhost:3000> and sign in with one of the demo accounts
 | Teacher | `sunita.rao@college.edu`            | Mark and report on their own courses       |
 | Student | `aarav.sharma1@student.college.edu` | View their own attendance                  |
 
-> The demo accounts exist only in the seeded database. Delete `data/` and run
-> `npm run seed` again to start over, or `npm run reset` to wipe and reseed.
+> **"Email or password is incorrect" on a brand-new checkout?** That means the
+> database has no accounts in it. The `data/` folder is deliberately not tracked
+> in git, so it starts empty. Run `npm run seed` to create the demo accounts,
+> then sign in again. (`npm start` now does this for you on first run; the
+> manual command is still there if you cleared the database yourself.)
+>
+> Use `npm run reset` at any time to wipe everything and start over.
+
+Auto-seeding is skipped when `NODE_ENV=production`, so a real deployment never
+gets demo accounts with a published password.
 
 ## Features
 
@@ -200,7 +210,8 @@ npm test
 
 The suite starts a real server against a temporary database and covers
 authentication, role boundaries, marking rules (future dates, invalid statuses,
-unenrolled students), percentage calculation, CSV export, and cascade deletes.
+unenrolled students), percentage calculation, CSV export, cascade deletes, and
+first-run behaviour on an empty database.
 
 ## License
 

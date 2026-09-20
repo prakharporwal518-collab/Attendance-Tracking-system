@@ -5,12 +5,15 @@
  *
  *   npm run seed     add demo data, keeping anything already there
  *   npm run reset    wipe every table first, then seed
+ *
+ * `seedDatabase()` is also called by the server on first run, so that a fresh
+ * clone can be signed into without a separate setup step.
  */
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import bcrypt from 'bcryptjs';
 import { config } from '../config.js';
 import { all, get, run, transaction } from './index.js';
-
-const RESET = process.argv.includes('--reset');
 
 const FIRST_NAMES = [
   'Aarav', 'Ananya', 'Rohan', 'Ishita', 'Kabir', 'Meera', 'Arjun', 'Diya',
@@ -71,12 +74,22 @@ function wipe() {
   run("DELETE FROM sqlite_sequence WHERE name IN ('attendance','enrollments','courses','users')");
 }
 
-async function seed() {
-  if (RESET) wipe();
+/**
+ * Fill an empty database with demo data.
+ *
+ * @param {object}  [options]
+ * @param {boolean} [options.reset]  Wipe every table first.
+ * @param {boolean} [options.quiet]  Suppress the per-step logging.
+ * @returns {Promise<boolean>} true when data was written, false when skipped.
+ */
+export async function seedDatabase({ reset = false, quiet = false } = {}) {
+  const say = quiet ? () => {} : (...args) => console.log(...args);
+
+  if (reset) wipe();
 
   if (get('SELECT COUNT(*) AS n FROM users').n > 0) {
-    console.log('The database already has users. Run "npm run reset" to start over.');
-    return;
+    say('The database already has users. Run "npm run reset" to start over.');
+    return false;
   }
 
   const passwordHash = await bcrypt.hash(config.seedPassword, 10);
@@ -178,18 +191,26 @@ async function seed() {
       }
     }
 
-    console.log(`Created ${studentIds.length} students, ${teacherIds.length} teachers,`);
-    console.log(`${courseIds.length} courses and ${marked} attendance records.`);
+    say(`Created ${studentIds.length} students, ${teacherIds.length} teachers,`);
+    say(`${courseIds.length} courses and ${marked} attendance records.`);
   });
 
-  console.log('\nDemo accounts (password: %s)', config.seedPassword);
-  console.log('  admin    admin@college.edu');
-  console.log('  teacher  sunita.rao@college.edu');
+  say('\nDemo accounts (password: %s)', config.seedPassword);
+  say('  admin    admin@college.edu');
+  say('  teacher  sunita.rao@college.edu');
   const firstStudent = all("SELECT email FROM users WHERE role = 'student' ORDER BY id LIMIT 1")[0];
-  console.log(`  student  ${firstStudent.email}\n`);
+  say(`  student  ${firstStudent.email}\n`);
+
+  return true;
 }
 
-seed().catch((error) => {
-  console.error('Seeding failed:', error);
-  process.exit(1);
-});
+// Only act as a CLI when run directly, so importing this file is side-effect free.
+const isCli = process.argv[1] &&
+  path.resolve(process.argv[1]) === path.resolve(fileURLToPath(import.meta.url));
+
+if (isCli) {
+  seedDatabase({ reset: process.argv.includes('--reset') }).catch((error) => {
+    console.error('Seeding failed:', error);
+    process.exit(1);
+  });
+}
