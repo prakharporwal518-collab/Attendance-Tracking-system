@@ -1,6 +1,7 @@
 import express from 'express';
 import cookieParser from 'cookie-parser';
 import { config } from './config.js';
+import { get } from './db/index.js';
 import { authRouter } from './routes/auth.js';
 import { usersRouter } from './routes/users.js';
 import { coursesRouter } from './routes/courses.js';
@@ -24,7 +25,13 @@ export function createApp() {
   });
 
   app.get('/api/health', (_req, res) => {
-    res.json({ status: 'ok', time: new Date().toISOString() });
+    res.json({
+      status: 'ok',
+      time: new Date().toISOString(),
+      // The login screen uses this to explain an empty database instead of
+      // advertising demo accounts that do not exist.
+      setupRequired: get('SELECT COUNT(*) AS n FROM users').n === 0
+    });
   });
 
   app.use('/api/auth', authRouter);

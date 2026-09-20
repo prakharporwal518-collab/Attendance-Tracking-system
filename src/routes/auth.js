@@ -3,7 +3,7 @@ import bcrypt from 'bcryptjs';
 import { config } from '../config.js';
 import { get, run } from '../db/index.js';
 import { authenticate, issueToken } from '../middleware/auth.js';
-import { unauthorized, badRequest } from '../utils/errors.js';
+import { unauthorized, badRequest, HttpError } from '../utils/errors.js';
 import { requireEmail, requirePassword, requireString } from '../utils/validate.js';
 
 export const authRouter = Router();
@@ -27,6 +27,15 @@ const cookieOptions = {
 authRouter.post('/login', async (req, res) => {
   const email = requireEmail(req.body?.email);
   const password = requireString(req.body?.password, 'password', { max: 200 });
+
+  // An empty database would otherwise report every login as a wrong password,
+  // which sends people looking for a typo that is not there.
+  if (get('SELECT COUNT(*) AS n FROM users').n === 0) {
+    throw new HttpError(
+      503,
+      'No accounts exist yet. Run "npm run seed" to create the demo accounts, then sign in again.'
+    );
+  }
 
   const user = get('SELECT * FROM users WHERE email = :email', { email });
 
